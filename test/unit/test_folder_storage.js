@@ -1043,6 +1043,63 @@ TD.commonSimple('header iteration', function test_header_iteration() {
     chexpect(null, null, null, null));
 });
 
+/**
+ * Test eviction
+ */
+TD.commonSimple('Evict data', function test_eviction() {
+  var dA = DateUTC(2010, 0, 4),
+      uidA1 = 101, uidA2 = 102, uidA3 = 103,
+      dB = DateUTC(2010, 0, 5),
+      uidB1 = 111, uidB2 = 112, uidB3 = 113,
+      dC = DateUTC(2010, 0, 6),
+      uidC1 = 121, uidC2 = 122, uidC3 = 123,
+      dFuture = DateUTC(2011, 0, 1);
+  function makeAndFillTestContext() {
+    var ctx = makeTestContext();
+
+    ctx.insertHeader(dA, uidA1);
+    ctx.insertHeader(dA, uidA2);
+    ctx.insertHeader(dA, uidA3);
+    ctx.insertHeader(dB, uidB1);
+    ctx.insertHeader(dB, uidB2);
+    ctx.insertHeader(dB, uidB3);
+
+    // split to [B's, A's]
+    var olderBlockInfo = ctx.storage._splitHeaderBlock(
+      ctx.storage._headerBlockInfos[0], ctx.storage._headerBlocks[0],
+      3 * $_mailslice.HEADER_EST_SIZE_IN_BYTES);
+    ctx.storage._headerBlockInfos.push(olderBlockInfo);
+
+    ctx.insertHeader(dC, uidC1);
+    ctx.insertHeader(dC, uidC2);
+    ctx.insertHeader(dC, uidC3);
+
+    // split [C's and B's, A's] to [C's, B's, A's]
+    olderBlockInfo = ctx.storage._splitHeaderBlock(
+      ctx.storage._headerBlockInfos[0], ctx.storage._headerBlocks[0],
+      3 * $_mailslice.HEADER_EST_SIZE_IN_BYTES);
+    ctx.storage._headerBlockInfos.splice(1, 0, olderBlockInfo);
+
+    return ctx;
+  }
+
+  var ctx = makeAndFillTestContext();
+  do_check_eq(ctx.storage.getKnownMessageCount(), 9);
+  ctx.storage.evictData(dFuture);
+  do_check_eq(ctx.storage.getKnownMessageCount(), 0);
+
+  var ctx = makeAndFillTestContext();
+  do_check_eq(ctx.storage.getKnownMessageCount(), 9);
+  ctx.storage.evictData(dA);
+  do_check_eq(ctx.storage.getKnownMessageCount(), 9);
+  ctx.storage.evictData(dB);
+  do_check_eq(ctx.storage.getKnownMessageCount(), 6);
+  ctx.storage.evictData(dC);
+  do_check_eq(ctx.storage.getKnownMessageCount(), 3);
+  ctx.storage.evictData(dFuture);
+  do_check_eq(ctx.storage.getKnownMessageCount(), 0);
+});
+
 ////////////////////////////////////////////////////////////////////////////////
 
 function run_test() {

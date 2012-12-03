@@ -2004,6 +2004,19 @@ FolderStorage.prototype = {
                                     desiredCount, gotMessages.bind(this));
     }
   },
+  /* XXX: Evict data. This should be a useful comment. */
+  evictData: function ifs_evictData(until) {
+    console.log('XXX starting');
+    var _this = this;
+    this.getAllMessagesInImapDateRange(0, until, function(headers) {
+      console.log('XXX evicting ' + headers.length + ' messages');
+      for(var i = 0; i < headers.length; ++i) {
+        console.log('XXX: ' + headers[i].id + ' -- ' + headers[i].subject);
+        _this.deleteMessageHeaderAndBody(headers[i]);
+      }
+    });
+    console.log('XXX finished');
+  },
 
   /**
    * Refresh our understanding of the time range covered by the messages
